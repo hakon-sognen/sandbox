@@ -50,7 +50,7 @@
 
             
             
-            document.getElementById('container').addEventListener('click', function (evt) {
+            document.getElementById('container').addEventListener('mousemove', function (evt) {
             // The user has clicked; let's note this event
             // and the click's coordinates so that we can
             // react to it in the render loop
@@ -65,8 +65,8 @@
             scene = new THREE.Scene();
 
             // put a camera in the scene
-            camera = new THREE.PerspectiveCamera(10, window.innerWidth / window.innerHeight, 1, 10000 );
-            camera.position.set(800, 200, 800);
+            camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 1, 30000 );
+            camera.position.set(-800, 300, 800);
             scene.add(camera);
 
             // create a camera contol
@@ -77,7 +77,7 @@
             // transparently support window resize
             THREEx.WindowResize.bind(renderer, camera);
             
-             marker = new THREE.Mesh( new THREE.SphereGeometry(1), new THREE.MeshLambertMaterial( { color: 0xff0000 } ) );
+             marker = new THREE.Mesh( new THREE.SphereGeometry(1), new THREE.MeshBasicMaterial( { color: 0xff0000 } ) );
              scene.add(marker);
             
             setupGui();
@@ -122,14 +122,11 @@
             // actually render the scene
             renderer.render( scene, camera );
         }
-
-    function pick(){
+        var projector = new THREE.Projector();
+        var directionVector = new THREE.Vector3();
+        function pick(){
         
               if (clickInfo.userHasClicked) {
-
-               
-                var projector = new THREE.Projector();
-                 var directionVector = new THREE.Vector3();
 
 
                     clickInfo.userHasClicked = false;
@@ -150,16 +147,12 @@
         
                     // Unproject the vector
                     projector.unprojectVector(directionVector, camera);
+  
+   
         
-                    // Substract the vector representing the camera position
-                    directionVector.subSelf(camera.position);
         
-                    // Normalize the vector, to avoid large numbers from the
-                    // projection and substraction
-                    directionVector.normalize();
-        
-                    // Now our direction vector holds the right numbers!
-                    ray.setSource(camera.position, directionVector);
+                    var ray = new THREE.Ray( camera.position, directionVector.subSelf( camera.position ).normalize() );
+
         
                     var intersects = ray.intersectObjects(scene.children);
                     if (intersects.length) {
@@ -168,15 +161,25 @@
                         // object holds the intersection point, the face that's
                         // been "hit" by the ray, and the object to which that
                         // face belongs. We only care for the object itself.
-                        var target = intersects[0].object;
-                      //  statsNode.innerHTML = 'Name: ' + target.name
-                         //       + '<br>'
-                         //       + 'ID: ' + target.id;
-        
-                        // let's move the marker to the hit point
-                        marker.position.x = intersects[0].point.x;
-                        marker.position.y = intersects[0].point.y;
-                        marker.position.z = intersects[0].point.z;
+                    
+                        for(var i=0; i < intersects.length;i++){
+                        
+                            var target = intersects[i].object;
+                        
+                            if(target.name.length>0){
+                                console.log(target.name+" x:"+intersects[i].point.x+" y:"+intersects[i].point.y+" z:"+intersects[i].point.z);
+                                //  statsNode.innerHTML = 'Name: ' + target.name
+                                //       + '<br>'
+                                //       + 'ID: ' + target.id;        
+                                // let's move the marker to the hit point
+                                marker.position.x = intersects[i].point.x;
+                                marker.position.y = intersects[i].point.y;
+                                marker.position.z = intersects[i].point.z;
+                                return;
+                            }
+                        }
+                    
+                    
                     }
 
         }
@@ -217,7 +220,7 @@
         function setupContent(){
           
           
-          var light = new THREE.DirectionalLight(0xFFFFFF,0.3);
+            var light = new THREE.DirectionalLight(0xFFFFFF,0.3);
             light.position.set(1,-1,1);
             light.rotation.x = light.rotation.y = light.rotation.z = 0;
           //  light.target.position.set(0.0,0.0,0.0);
@@ -237,43 +240,44 @@
        
         var noiseShader = $('#noise').text();
        
-       
    
-      
-       
-       
-        // create the sphere's material
-        var shaderMaterial = new THREE.ShaderMaterial({
-   
-            uniforms: uniforms,
-            vertexShader:   $('#vertexshader').text(),
-            fragmentShader: noiseShader+$('#fragmentshader').text(),
-            side: THREE.DoubleSide
-        });
 
-        var shaderMaterial2 = new THREE.ShaderMaterial({
+        var skyboxMaterial = new THREE.ShaderMaterial({
             uniforms: uniforms2,
             vertexShader:   $('#vertexshader').text(),
-            fragmentShader: noiseShader+$('#fragmentshader2').text(),
+            fragmentShader: noiseShader+$('#fragmentshader2').text(),          
             side: THREE.DoubleSide
         });
 
        
        
-          var material =  new THREE.MeshLambertMaterial({
-               side: THREE.DoubleSide
-              
-          });
-       
+         
          //   material.side = THREE.FlipSided;
-            var skyboxMesh  = new THREE.Mesh( new THREE.SphereGeometry( 3000, 48, 32 ), shaderMaterial2 );
-           
+            var skyboxMesh  = new THREE.Mesh( new THREE.SphereGeometry( 6000, 16, 16 ), skyboxMaterial );
+           skyboxMesh.flipSided = true;
            // material.doubleSided = true;
             // add it to the scene
             scene.add( skyboxMesh );
+               
+            var crateTexture = new THREE.ImageUtils.loadTexture( 'checkerboard.png' );
+            crateTexture.wrapS = crateTexture.wrapT = THREE.RepeatWrapping;
+            crateTexture.repeat.set( 5, 5 );
             
-            var mesh = new THREE.Mesh( new THREE.CubeGeometry( 30, 10, 10 ), shaderMaterial );
-          
+            var material =  new THREE.MeshNormalMaterial({
+              // map: crateTexture
+            });
+       
+            
+            
+            var boxMaterial = new THREE.ShaderMaterial({   
+                uniforms: uniforms,
+                vertexShader:   $('#vertexshader').text(),
+                fragmentShader: noiseShader+$('#fragmentshader').text(),
+                side: THREE.DoubleSide
+            });
+            
+            var mesh = new THREE.Mesh( new THREE.CubeGeometry( 30, 10, 10 ), material );
+            mesh.name="box";
           
           
             mesh.position.y=5;
@@ -311,9 +315,9 @@
                 console.log(current.x);
           
             });
-               var stride = 3;
-            var h = 0.1;
-              var geometry = new THREE.Geometry;
+                var stride = 3;
+                var h = 0.1;
+                var geometry = new THREE.Geometry;
                     geometry.vertices.push(
                        new THREE.Vector3(0, h, 0),
                        new THREE.Vector3(stride, h, 0),
@@ -367,24 +371,153 @@
             points.push(new THREE.Vector3(0, 50, 0));
             points.push(new THREE.Vector3(50, 50, 0));
             points.push(new THREE.Vector3(50, 0, 0));
-            points.push(new THREE.Vector3(0, 0, 0));
+            points.push(new THREE.Vector3(0, 0, -12));
             points.push(new THREE.Vector3(-25, 0, 0));
             points.push(new THREE.Vector3(-50, 0, 50));
-            points.push(new THREE.Vector3(50, 0, 50));
-            points.push(new THREE.Vector3(50, 0, -50));
-            points.push(new THREE.Vector3(50, 0, -500));
+
             var extrudePath = new THREE.SplineCurve3(points);
             var segments = 50;
             var radiusSegments = 12;
             var radius = 4;
             var tubeGeom = new THREE.TubeGeometry(extrudePath,segments,radius,radiusSegments,false,false);
+           
+           
+           
+           
+           
+            var tubeMaterial = new THREE.ShaderMaterial({   
+                uniforms: uniforms,
+                vertexShader:   $('#vertexshader').text(),
+                fragmentShader: noiseShader+$('#fragmentshader').text(),
+                side: THREE.DoubleSide
+            });
             
-            var tubeMesh = new THREE.Mesh(tubeGeom,shaderMaterial);
-            
+            var tubeMesh = new THREE.Mesh(tubeGeom,tubeMaterial);
+            tubeMesh.name="tube";
             var tubeMeshWf = new THREE.Mesh(tubeGeom,wireframeMaterial);
             
             scene.add(tubeMesh);
             scene.add(tubeMeshWf);
+      
+      
+      
+            var data = generateHeight( 1024, 1024 );
+          
+
+            var quality = 16, step = 1024 / quality;
+
+            var plane = new THREE.PlaneGeometry( 2000, 2000, quality - 1, quality - 1 );
+            plane.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
+
+            var clearing = new THREE.Vector3(0.0,0.0,0.0);          
+            
+            for ( var i = 0, l = plane.vertices.length; i < l; i ++ ) {
+
+                var x = i % quality, y = ~~ ( i / quality );
+               
+               
+                 if(clearing.distanceTo(plane.vertices[ i ]) < 300 ){
+                     data[ ( x * step ) + ( y * step ) * 1024 ]=64;
+                 }
+               
+               
+                plane.vertices[ i ].y = data[ ( x * step ) + ( y * step ) * 1024 ] * 2 - 128;
+
+               
+            }
+          
+            var texture = new THREE.Texture( generateTexture( data, 1024, 1024 ) );
+            texture.needsUpdate = true;
+
+            var material = new THREE.MeshBasicMaterial( { map: texture, overdraw: true } );
+
+
+
+
+
+            plane.computeCentroids();
+
+            var terrainMesh = new THREE.Mesh( plane, material );
+            terrainMesh.name="Terrain";
+            scene.add( terrainMesh );
+      
+      
         }
     
+
+            function generateHeight( width, height ) {
+
+                var data = Float32Array ? new Float32Array( width * height ) : [], perlin = new ImprovedNoise(),
+                size = width * height, quality = 2, z = 0;
+
+                for ( var i = 0; i < size; i ++ ) {
+
+                    data[ i ] = 0
+
+                }
+
+                for ( var j = 0; j < 4; j ++ ) {
+
+                    quality *= 4;
+
+                    for ( var i = 0; i < size; i ++ ) {
+
+                        var x = i % width, y = ~~ ( i / width );
+                        data[ i ] += Math.floor( Math.abs( perlin.noise( x / quality, y / quality, z ) * 0.5 ) * quality + 10 );
+
+
+                    }
+
+                }
+
+                return data;
+
+            }
+
+
+            function generateTexture( data, width, height ) {
+
+                var canvas, context, image, imageData,
+                level, diff, vector3, sun, shade;
+
+                vector3 = new THREE.Vector3( 0, 0, 0 );
+
+                sun = new THREE.Vector3( 1, 1, 1 );
+                sun.normalize();
+
+                canvas = document.createElement( 'canvas' );
+                canvas.width = width;
+                canvas.height = height;
+
+                context = canvas.getContext( '2d' );
+                context.fillStyle = '#000';
+                context.fillRect( 0, 0, width, height );
+
+                image = context.getImageData( 0, 0, width, height );
+                imageData = image.data;
+
+                for ( var i = 0, j = 0, l = imageData.length; i < l; i += 4, j ++  ) {
+
+                    vector3.x = data[ j - 1 ] - data[ j + 1 ];
+                    vector3.y = 2;
+                    vector3.z = data[ j - width ] - data[ j + width ];
+                    vector3.normalize();
+
+                    shade = vector3.dot( sun );
+
+                    imageData[ i ] = ( 96 + shade * 128 ) * ( data[ j ] * 0.007 );
+                    imageData[ i + 1 ] = ( 32 + shade * 96 ) * ( data[ j ] * 0.007 );
+                    imageData[ i + 2 ] = ( shade * 96 ) * ( data[ j ] * 0.007 );
+
+                }
+
+                context.putImageData( image, 0, 0 );
+
+                return canvas;
+
+            }
+
+
+
+
 

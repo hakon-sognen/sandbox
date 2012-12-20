@@ -11,6 +11,8 @@ THREE.OrbitalControls = function( object, domElement ) {
 	
 	this.center = new THREE.Vector3( 0, 0, 0 );
 	
+	this.targetOffset = new THREE.Vector3( 0, 0, 0 );
+	
 	this.userZoom = true;
 	this.userZoomSpeed = 1.0;
 
@@ -33,9 +35,15 @@ THREE.OrbitalControls = function( object, domElement ) {
 	var thetaDelta = 0;
 	var scale = 1;
 
+    var radius =1;
+
 	this.update = function () {
 
-		var position = this.object.position;
+
+        var cameraPosition = this.object.position;
+
+		var position = cameraPosition.clone().subSelf(this.targetOffset);
+
 
 		// angle from z-axis around y-axis
 		var theta = Math.atan2( position.x, position.z ); 
@@ -65,6 +73,9 @@ THREE.OrbitalControls = function( object, domElement ) {
 
 		}
 
+      
+        
+
 		var radius = position.clone().subSelf( this.center ).length();
 		var offset = new THREE.Vector3();
 		offset.x = radius * Math.sin( phi ) * Math.sin( theta );
@@ -77,10 +88,18 @@ THREE.OrbitalControls = function( object, domElement ) {
 			scale = 1;
 		
 		}
+        
+     
+	
+		
 
-		position.copy( this.center ).addSelf( offset );
+        var globalCenter = this.center.clone();
+        
+        globalCenter.addSelf(this.targetOffset);
 
-		this.object.lookAt( this.center );
+        cameraPosition.copy( globalCenter ).addSelf( offset );
+
+		this.object.lookAt( globalCenter);
 
 	};
 

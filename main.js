@@ -1,12 +1,13 @@
-        var scene, renderer;
+        var scene, renderer,things;
         var camera, controls, gui, tween,marker;
 
-
+        var cameraNode;
        
 
         var clickInfo = {
             x: 0,
             y: 0,
+            userHasMoved: false,
             userHasClicked: false
         };
 
@@ -26,6 +27,10 @@
           }
         };
 
+        var terrainUniforms;
+        
+ 
+        var clock = new THREE.Clock();
 
         if( !init() )   animate();
 
@@ -54,6 +59,17 @@
             // The user has clicked; let's note this event
             // and the click's coordinates so that we can
             // react to it in the render loop
+            clickInfo.userHasMoved = true;
+            clickInfo.x = evt.clientX;
+            clickInfo.y = evt.clientY;
+        }, true);
+            
+           
+            document.getElementById('container').addEventListener('mousedown', function (evt) {
+            // The user has clicked; let's note this event
+            // and the click's coordinates so that we can
+            // react to it in the render loop
+            clickInfo.userHasMoved = true;
             clickInfo.userHasClicked = true;
             clickInfo.x = evt.clientX;
             clickInfo.y = evt.clientY;
@@ -66,19 +82,24 @@
 
             // put a camera in the scene
             camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 1, 30000 );
-            camera.position.set(-800, 300, 800);
-            scene.add(camera);
-
+            camera.position.set(100, 10, 100);
+          
+            cameraNode = new THREE.Object3D();         
+            cameraNode.add(camera);
+            scene.add(cameraNode);
+            
+            cameraNode.position.set(0, 0, 0);
+            
             // create a camera contol
             controls = new THREE.OrbitalControls(camera)
-
-
-
+            //controls = new THREE.PointerLockControls(camera);
+           // scene.add( controls.getObject() );
+            //controls.enabled=true;
             // transparently support window resize
             THREEx.WindowResize.bind(renderer, camera);
             
-             marker = new THREE.Mesh( new THREE.SphereGeometry(1), new THREE.MeshBasicMaterial( { color: 0xff0000 } ) );
-             scene.add(marker);
+            marker = new THREE.Mesh( new THREE.SphereGeometry(1), new THREE.MeshBasicMaterial( { color: 0xff0000 } ) );
+            scene.add(marker);
             
             setupGui();
             
@@ -105,17 +126,20 @@
 
          
         }
-
+       
         // render the scene
         function render() {
-
+          var delta = clock.getDelta()
             // update camera controls
-            controls.update();
+            controls.update(delta);
 
             TWEEN.update();
 
             uniforms.time.value+=0.001;
             uniforms2.time.value+=0.001;
+           
+            terrainUniforms.time.value+=1.0;
+           
            
             pick();
            
@@ -126,26 +150,25 @@
         var directionVector = new THREE.Vector3();
         function pick(){
         
-              if (clickInfo.userHasClicked) {
+          if (clickInfo.userHasMoved) {
 
 
-                    clickInfo.userHasClicked = false;
-        
-                 //   statsNode.innerHTML = '';
-       
-                    // The following will translate the mouse coordinates into a number
-                    // ranging from -1 to 1, where
-                    //      x == -1 && y == -1 means top-left, and
-                    //      x ==  1 && y ==  1 means bottom right
-                    var x = ( clickInfo.x / window.innerWidth ) * 2 - 1;
-                    var y = -( clickInfo.y / window.innerHeight ) * 2 + 1;
-                  
-                
-                  
-                    // Now we set our direction vector to those initial values
-                    directionVector.set(x, y, 1);
-        
-                    // Unproject the vector
+               
+             //   statsNode.innerHTML = '';
+   
+                // The following will translate the mouse coordinates into a number
+                // ranging from -1 to 1, where
+                //      x == -1 && y == -1 means top-left, and
+                //      x ==  1 && y ==  1 means bottom right
+                var x = ( clickInfo.x / window.innerWidth ) * 2 - 1;
+                var y = -( clickInfo.y / window.innerHeight ) * 2 + 1;
+              
+            
+              
+                // Now we set our direction vector to those initial values
+                directionVector.set(x, y, 1);
+    
+                // Unproject the vector
                     projector.unprojectVector(directionVector, camera);
   
    
@@ -154,39 +177,41 @@
                     var ray = new THREE.Ray( camera.position, directionVector.subSelf( camera.position ).normalize() );
 
         
-                    var intersects = ray.intersectObjects(scene.children);
+                    var intersects = ray.intersectObjects(things.children);
                     if (intersects.length) {
                         // intersections are, by default, ordered by distance,
-                        // so we only care for the first one. The intersection
-                        // object holds the intersection point, the face that's
-                        // been "hit" by the ray, and the object to which that
-                        // face belongs. We only care for the object itself.
-                    
-                        for(var i=0; i < intersects.length;i++){
-                        
-                            var target = intersects[i].object;
-                        
-                            if(target.name.length>0){
-                                console.log(target.name+" x:"+intersects[i].point.x+" y:"+intersects[i].point.y+" z:"+intersects[i].point.z);
-                                //  statsNode.innerHTML = 'Name: ' + target.name
-                                //       + '<br>'
-                                //       + 'ID: ' + target.id;        
-                                // let's move the marker to the hit point
-                                marker.position.x = intersects[i].point.x;
-                                marker.position.y = intersects[i].point.y;
-                                marker.position.z = intersects[i].point.z;
-                                return;
+                    // so we only care for the first one. The intersection
+                    // object holds the intersection point, the face that's
+                    // been "hit" by the ray, and the object to which that
+                    // face belongs. We only care for the object itself.
+                
+                    for(var i=0; i < intersects.length;i++){                        
+                        var target = intersects[i].object;                        
+                        if(target.name.length>0){
+                          //  console.log(target.name+" x:"+intersects[i].point.x+" y:"+intersects[i].point.y+" z:"+intersects[i].point.z);
+                            //  statsNode.innerHTML = 'Name: ' + target.name
+                            //       + '<br>'
+                            //       + 'ID: ' + target.id;        
+                            // let's move the marker to the hit point
+                            marker.position.x = intersects[i].point.x;
+                            marker.position.y = intersects[i].point.y;
+                            marker.position.z = intersects[i].point.z;
+                           
+                          if (clickInfo.userHasClicked) {
+                              
+                              controls.targetOffset.set(marker.position.x, marker.position.y,marker.position.z);
                             }
+                           
+                            clickInfo.userHasMoved = false;
+                            clickInfo.userHasClicked = false;
+                            return;
                         }
-                    
-                    
-                    }
-
-        }
-        
-        
+                    }                                        
+                }
+        }                
+    clickInfo.userHasMoved = false;
+    clickInfo.userHasClicked = false;
     }
-
         
 
         function setupGui(){
@@ -252,22 +277,18 @@
        
        
          
-         //   material.side = THREE.FlipSided;
+            //   material.side = THREE.FlipSided;
             var skyboxMesh  = new THREE.Mesh( new THREE.SphereGeometry( 6000, 16, 16 ), skyboxMaterial );
-           skyboxMesh.flipSided = true;
-           // material.doubleSided = true;
+            skyboxMesh.flipSided = true;
+            // material.doubleSided = true;
             // add it to the scene
             scene.add( skyboxMesh );
                
-            var crateTexture = new THREE.ImageUtils.loadTexture( 'checkerboard.png' );
-            crateTexture.wrapS = crateTexture.wrapT = THREE.RepeatWrapping;
-            crateTexture.repeat.set( 5, 5 );
-            
-            var material =  new THREE.MeshNormalMaterial({
-              // map: crateTexture
-            });
-       
-            
+           
+             things = new THREE.Object3D();
+            things.position.x=-50;
+            things.position.z=-50;
+            scene.add( things );
             
             var boxMaterial = new THREE.ShaderMaterial({   
                 uniforms: uniforms,
@@ -276,22 +297,22 @@
                 side: THREE.DoubleSide
             });
             
-            var mesh = new THREE.Mesh( new THREE.CubeGeometry( 30, 10, 10 ), material );
+            var mesh = new THREE.Mesh( new THREE.CubeGeometry( 100, 11, 10 ), material );
             mesh.name="box";
           
           
-            mesh.position.y=5;
-            scene.add( mesh );
+            mesh.position.y=-5;
+            things.add( mesh );
     
             var wireframeMaterial = new THREE.MeshBasicMaterial( { color: new THREE.Color(0x000000) , wireframe : true, linewidth: 5} );
     
-            var mesh2 = new THREE.Mesh( new THREE.CubeGeometry( 30, 10, 10 ), wireframeMaterial );
+            var mesh2 = new THREE.Mesh( new THREE.CubeGeometry( 100, 11, 10 ), wireframeMaterial );
           
           
           
-            mesh2.position.y=5;
+            mesh2.position.y=-5;
 
-            scene.add( mesh2 );
+            things.add( mesh2 );
     
     
             var planeW = 50; // pixels
@@ -300,7 +321,7 @@
             var numH = 50; // how many tall (50*50 = 2500 pixels tall)
             var plane = new THREE.Mesh( new THREE.PlaneGeometry( planeW*50, planeH*50, planeW, planeH ), new THREE.MeshBasicMaterial( { color: new THREE.Color(0x00ff00) , wireframe : true, linewidth: 5} )  );
             plane.rotation.x =  Math.PI/2;
-            scene.add(plane);
+            things.add(plane);
     
             var grassBase =  new THREE.Color(0x44aa44);
             var current = { x: mesh.position.y };
@@ -329,18 +350,18 @@
                         //new THREE.Vertex(new THREE.Vector3(5, 0, 0))
                     );
                     geometry.colors = [
-                        new THREE.Color(0x00ff00),
-                        new THREE.Color(0x00ff00),                    
-                        new THREE.Color(0x00ff00),
-                        new THREE.Color(0x00ff00),
-                        new THREE.Color(0x00ff00),
+                        new THREE.Color(0x0f0f0f),
+                        new THREE.Color(0x0f0f0f),                    
+                        new THREE.Color(0x0f0f0f),
+                        new THREE.Color(0x0f0f0f),
+                        new THREE.Color(0x0f0f0f),
                     ];
     
             material = new THREE.LineBasicMaterial( { color: 0xffffff, opacity: 1, linewidth: 3 } );
             material.vertexColors = true;
             
             var group = new THREE.Object3D();
-            scene.add(group);
+            things.add(group);
           
             var grassSize = 100; 
           
@@ -348,10 +369,10 @@
             group.position.z=-grassSize*0.5;
             
             
-            var underGrass = new THREE.Mesh( new THREE.PlaneGeometry( grassSize, grassSize), new   THREE.MeshBasicMaterial( { color: grassBase , wireframe : true} ) );
+            var underGrass = new THREE.Mesh( new THREE.PlaneGeometry( grassSize, grassSize), new THREE.MeshBasicMaterial( { color: grassBase , wireframe : true} ) );
             underGrass.z = 1;
             underGrass.rotation.x =  -Math.PI/2;
-            scene.add(underGrass);
+            things.add(underGrass);
             
             for(var i = 0; i < grassSize ; i+=6){
                 for(var j = 0; j < grassSize ; j+=6){
@@ -359,25 +380,30 @@
     
                     var line = new THREE.Line(geometry, material);
                 
-                    line.position.x=i+Math.random();
-                    line.position.z=j+Math.random();
+                    line.position.x=i;
+                    line.position.z=j;
                     group.add(line);
                 }
             }
             
             var points = [];
            
-            points.push(new THREE.Vector3(0, 0, 0));
-            points.push(new THREE.Vector3(0, 50, 0));
-            points.push(new THREE.Vector3(50, 50, 0));
-            points.push(new THREE.Vector3(50, 0, 0));
-            points.push(new THREE.Vector3(0, 0, -12));
-            points.push(new THREE.Vector3(-25, 0, 0));
-            points.push(new THREE.Vector3(-50, 0, 50));
+            points.push(new THREE.Vector3(75, -6, 0));
+            points.push(new THREE.Vector3(70, 6, 0));
+            points.push(new THREE.Vector3(50, 3, 0));
+            points.push(new THREE.Vector3(0, 3, 0));
+            points.push(new THREE.Vector3(-50, 3, 0));
+            points.push(new THREE.Vector3(-70, 6, 0));
+            points.push(new THREE.Vector3(-75, -6, 0));
+           
+            //points.push(new THREE.Vector3(50, 0, 0));
+            //points.push(new THREE.Vector3(0, 0, -12));
+            //points.push(new THREE.Vector3(-25, 0, 0));
+            //points.push(new THREE.Vector3(-50, 0, 50));
 
             var extrudePath = new THREE.SplineCurve3(points);
             var segments = 50;
-            var radiusSegments = 12;
+            var radiusSegments = 40;
             var radius = 4;
             var tubeGeom = new THREE.TubeGeometry(extrudePath,segments,radius,radiusSegments,false,false);
            
@@ -396,17 +422,17 @@
             tubeMesh.name="tube";
             var tubeMeshWf = new THREE.Mesh(tubeGeom,wireframeMaterial);
             
-            scene.add(tubeMesh);
-            scene.add(tubeMeshWf);
+            things.add(tubeMesh);
+            things.add(tubeMeshWf);
       
       
       
-            var data = generateHeight( 1024, 1024 );
+            var data = generateHeight( 1024, 1024,0,0 );
           
 
             var quality = 16, step = 1024 / quality;
 
-            var plane = new THREE.PlaneGeometry( 2000, 2000, quality - 1, quality - 1 );
+            var plane = new THREE.PlaneGeometry( 1000, 1000, quality - 1, quality - 1 );
             plane.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
 
             var clearing = new THREE.Vector3(0.0,0.0,0.0);          
@@ -416,12 +442,12 @@
                 var x = i % quality, y = ~~ ( i / quality );
                
                
-                 if(clearing.distanceTo(plane.vertices[ i ]) < 300 ){
+                 if(clearing.distanceTo(plane.vertices[ i ]) < 150 ){
                      data[ ( x * step ) + ( y * step ) * 1024 ]=64;
                  }
                
                
-                plane.vertices[ i ].y = data[ ( x * step ) + ( y * step ) * 1024 ] * 2 - 128;
+                plane.vertices[ i ].y = data[ ( x * step ) + ( y * step ) * 1024 ] * 1 - 64;
 
                
             }
@@ -432,20 +458,47 @@
             var material = new THREE.MeshBasicMaterial( { map: texture, overdraw: true } );
 
 
+            terrainUniforms = {
+                  time: {
+                    type: 'f', // a float
+                    value: 0.0
+                  },
+              
+               my_texture: {
+                    type: 't', // a float
+                    value: texture
+                  },
+                
+                uCamPos: {
+                    type: 'v3',
+                    value: camera.position
+                    
+                }
+                
+                
+                };
+
+            var terrainMaterial = new THREE.ShaderMaterial({   
+                          
+                uniforms: terrainUniforms,
+                vertexShader:   $('#grassshader').text(),
+                fragmentShader: noiseShader+$('#grassfragmentshader').text()
+               
+            });
 
 
 
             plane.computeCentroids();
 
-            var terrainMesh = new THREE.Mesh( plane, material );
-            terrainMesh.name="Terrain";
+            var terrainMesh = new THREE.Mesh( plane, terrainMaterial );
+            // terrainMesh.name="Terrain";
             scene.add( terrainMesh );
       
       
         }
     
 
-            function generateHeight( width, height ) {
+            function generateHeight( width, height, offW,offH ) {
 
                 var data = Float32Array ? new Float32Array( width * height ) : [], perlin = new ImprovedNoise(),
                 size = width * height, quality = 2, z = 0;
@@ -457,15 +510,13 @@
                 }
 
                 for ( var j = 0; j < 4; j ++ ) {
-
                     quality *= 4;
-
                     for ( var i = 0; i < size; i ++ ) {
-
+                        
                         var x = i % width, y = ~~ ( i / width );
-                        data[ i ] += Math.floor( Math.abs( perlin.noise( x / quality, y / quality, z ) * 0.5 ) * quality + 10 );
-
-
+                        data[ i ] += Math.floor( Math.abs( perlin.noise( offW+x / quality, y / quality, offH+z / quality ) * 0.5 ) * quality + 10 );
+                    
+                    
                     }
 
                 }
@@ -496,6 +547,10 @@
                 image = context.getImageData( 0, 0, width, height );
                 imageData = image.data;
 
+
+                shade = 0;
+
+
                 for ( var i = 0, j = 0, l = imageData.length; i < l; i += 4, j ++  ) {
 
                     vector3.x = data[ j - 1 ] - data[ j + 1 ];
@@ -504,10 +559,14 @@
                     vector3.normalize();
 
                     shade = vector3.dot( sun );
+                    
+                    var adjR = -60;
+                    var adjG = 10;
+                    var adjB = 32;
 
-                    imageData[ i ] = ( 96 + shade * 128 ) * ( data[ j ] * 0.007 );
-                    imageData[ i + 1 ] = ( 32 + shade * 96 ) * ( data[ j ] * 0.007 );
-                    imageData[ i + 2 ] = ( shade * 96 ) * ( data[ j ] * 0.007 );
+                    imageData[ i ] = ( adjR+96 + shade * 128 ) * ( data[ j ] * 0.007 );
+                    imageData[ i + 1 ] = ( adjG+32 + shade * 96 ) * ( data[ j ] * 0.007 );
+                    imageData[ i + 2 ] = ( adjB+shade * 96 ) * ( data[ j ] * 0.007 );
 
                 }
 

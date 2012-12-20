@@ -7,7 +7,9 @@
 		<script type='text/javascript' src='tween.js'></script>
 		<script src="three.js"></script>
 		<script src="Detector.js"></script>
+		<script src="content.js"></script>
 		<script src="ImprovedNoise.js"></script>
+		<script src="PointerLockControls.js"></script>		
 		<script src="THREEx.WindowResize.js"></script>
 		<script src="OrbitalControls.js"></script>
 		<script type='text/javascript' src='dat.gui.min.js'></script>
@@ -25,7 +27,7 @@
 			varying vec2 vUv;
 
 			varying vec3 vNormal;
-
+			
 			uniform float time; // Used for texture animation
 			void main() {
 
@@ -34,33 +36,12 @@
 				vUv = uv;
 	
 				vNormal = normal;
-
+  				
 			}
 
 		</script>
 
-		<script type="x-shader/x-vertex" id="grassshader">
-
-			varying vec3 vPos;
-			varying vec2 vUv;
-
-			varying vec3 vNormal;
-
-			uniform float time; // Used for texture animation
-			void main() {
-
-				vec3 pos = position;
-			
-				gl_Position = projectionMatrix * modelViewMatrix * vec4(pos,1.0);
-				
-				vPos = position;
-				vUv = uv;
-	
-				vNormal = normal;
-
-			}
-
-		</script>
+		
 
 
 		<script type="x-shader/x-fragment" id="noise">
@@ -242,7 +223,13 @@
 
 		<script type="x-shader/x-fragment" id="fragmentshader2">
 			varying vec3 vPos;
+			varying vec3 vNormal;
+			varying vec2 texture_coordinate; 
+			
 			uniform float time;
+			
+			
+			
 			void main(){
 				vec3 uvw = vPos ;
 				vec4 color1 = vec4( 0.0,0.5,1.0, 1 );
@@ -274,6 +261,85 @@
 			}
 
 		</script>
+
+		<script type="x-shader/x-vertex" id="grassshader">
+
+			varying vec3 vPos;
+			varying vec2 vUv;
+
+			varying vec3 vNormal;
+			
+			uniform float time; // Used for texture animation
+			void main() {
+
+				vec3 pos = position;
+			
+				gl_Position = projectionMatrix * modelViewMatrix * vec4(pos,1.0);
+				
+				vPos = position;
+				vUv = uv;
+	
+				vNormal = normal;
+				
+			}
+
+		</script>
+
+		<script type="x-shader/x-fragment" id="grassfragmentshader">
+			varying vec3 vPos;
+			varying vec3 vNormal;
+			varying vec2 vUv;
+			
+			uniform float time;
+			uniform vec3 uCamPos;
+			uniform sampler2D my_texture;
+			
+			void main(){
+				
+				float distance = length(uCamPos-vPos);
+				
+				float n = 0.0;
+
+				
+				
+				 const float num = 10.0;
+		
+				
+				 
+				
+				
+					
+			
+					for(float m=1.0; m <=num;m++){
+						if(distance < m * 50.0){									
+							n += 0.1* snoise( vec3(100.0+time/10.0,100.0,100.0+time/10.0)+(20.0+vPos / m*16.0));
+						}
+					}
+					
+
+				
+//				n*=2.0;
+				vec4 color3 = texture2D(my_texture, vUv);
+	
+				float noiseWeight = 0.2;
+	
+				
+	
+				float r = n*noiseWeight + color3.x*(1.0-noiseWeight);
+				float g = n*noiseWeight + color3.y*(1.0-noiseWeight);
+				float b = n*noiseWeight + color3.z*(1.0-noiseWeight);
+	
+			
+	
+	
+				vec4 color = vec4( r,g,b, 1.0 );
+	
+				gl_FragColor = color;
+
+			}
+
+		</script>
+
 
 		<!-- End Shaders -->
 
